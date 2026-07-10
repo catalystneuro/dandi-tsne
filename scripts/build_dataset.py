@@ -61,7 +61,8 @@ def fetch_metadata(record: dict) -> dict:
     return {
         "id": identifier, "title": title, "description": description, "document": document,
         "keywords": keywords, "species": species, "approaches": approaches, "techniques": techniques,
-        "bytes": summary.get("numberOfBytes") or 0, "files": summary.get("numberOfFiles") or 0,
+        "bytes": summary.get("numberOfBytes") or 0,
+        "files": summary.get("numberOfFiles") or (record.get("draft_version") or record.get("most_recent_published_version") or {}).get("asset_count") or 0,
         "subjects": summary.get("numberOfSubjects") or 0, "modified": record.get("modified", ""),
         "url": meta.get("url") or f"https://dandiarchive.org/dandiset/{identifier}/{version}",
     }
@@ -83,6 +84,7 @@ def main() -> None:
     with ThreadPoolExecutor(max_workers=12) as pool:
         futures = [pool.submit(fetch_metadata, record) for record in catalog]
         records = [future.result() for future in as_completed(futures)]
+    records = [record for record in records if record["files"] > 0]
     records.sort(key=lambda item: item["id"])
     documents = [item.pop("document") for item in records]
     vectorizer = TfidfVectorizer(stop_words="english", ngram_range=(1, 2), min_df=2 if len(records) > 50 else 1, max_df=.94, max_features=7000, sublinear_tf=True)
