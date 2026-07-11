@@ -169,7 +169,7 @@ export default function Home() {
 
   return <main className="app-shell">
     <header>
-      <a className="brand" href="https://dandiarchive.org" target="_blank" rel="noreferrer"><span className="mark">d</span><span><b>DANDI Atlas</b><small>Explore the neuroscience archive</small></span></a>
+      <a className="brand" href="https://dandiarchive.org" target="_blank" rel="noreferrer"><span className="mark">d</span><span><b>DANDI Semantic Atlas</b></span></a>
       <div className="header-actions"><span className="updated">Updated {new Date(data.generatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</span><button onClick={() => setShowAbout(true)}>About this map</button></div>
     </header>
     <section className="intro">
@@ -208,6 +208,6 @@ export default function Home() {
       </aside>
     </section>
     <footer><span>{data.method}</span><a href="https://github.com/catalystneuro/dandi-semantic-atlas" target="_blank" rel="noreferrer">Source on GitHub ↗</a><a href="https://github.com/dandi/dandi-archive" target="_blank" rel="noreferrer">About DANDI ↗</a></footer>
-    {showAbout && <div className="modal-backdrop" onMouseDown={() => setShowAbout(false)}><section className="modal" onMouseDown={(e) => e.stopPropagation()}><button className="close" onClick={() => setShowAbout(false)}>×</button><p className="eyebrow">About the atlas</p><h2>A map made from meaning</h2><p>DANDI Atlas turns titles, descriptions, keywords, anatomy, species, and experimental methods into a numerical representation. Dimensionality reduction places similar records near one another; clustering identifies broad topic regions.</p><p>The source metadata comes directly from the DANDI Archive and is rebuilt nightly. This is an exploratory aid, not a taxonomy or ranking.</p><button className="modal-done" onClick={() => setShowAbout(false)}>Start exploring</button></section></div>}
+    {showAbout && <div className="modal-backdrop" onMouseDown={() => setShowAbout(false)}><section className="modal" onMouseDown={(e) => e.stopPropagation()}><button className="close" onClick={() => setShowAbout(false)}>×</button><p className="eyebrow">About the atlas</p><h2>A map made from meaning</h2><p>DANDI Semantic Atlas turns titles, descriptions, keywords, anatomy, species, and experimental methods into a numerical representation. Dimensionality reduction places similar records near one another; clustering identifies broad topic regions.</p><p>The source metadata comes directly from the DANDI Archive and is rebuilt nightly. This is an exploratory aid, not a taxonomy or ranking.</p><button className="modal-done" onClick={() => setShowAbout(false)}>Start exploring</button></section></div>}
   </main>;
 }
