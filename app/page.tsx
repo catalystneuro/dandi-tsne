@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type Dandiset = {
-  id: string; title: string; description: string; x: number; y: number;
+  id: string; title: string; description: string; x: number; y: number; z: number;
   cluster: number; authors: string[]; keywords: string[]; species: string[]; approaches: string[];
   techniques: string[]; bytes: number; files: number; subjects: number;
   modified: string; url: string;
@@ -43,8 +43,9 @@ function MapCanvas({ data, groups, keyOf, activeKeys, query, selected, onSelect 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState<Dandiset | null>(null);
-  const [view, setView] = useState({ zoom: 1, ox: 0, oy: 0 });
-  const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
+  const defaultView = { zoom: 1, rotX: -0.18, rotY: 0.42 };
+  const [view, setView] = useState(defaultView);
+  const drag = useRef<{ x: number; y: number; rotX: number; rotY: number } | null>(null);
   const normalizedQuery = query.trim().toLowerCase();
   const colorMap = useMemo(() => new Map(groups.map((g) => [g.key, g.color])), [groups]);
 
@@ -54,10 +55,16 @@ function MapCanvas({ data, groups, keyOf, activeKeys, query, selected, onSelect 
     return `${d.id} ${d.title} ${d.description} ${d.keywords.join(" ")} ${d.species.join(" ")}`.toLowerCase().includes(normalizedQuery);
   }), [data, activeKeys, keyOf, normalizedQuery]);
 
-  const pointAt = (d: Dandiset, w: number, h: number) => ({
-    x: (d.x * 0.86 + 0.07) * w * view.zoom + view.ox,
-    y: (d.y * 0.82 + 0.09) * h * view.zoom + view.oy,
-  });
+  const pointAt = (d: Dandiset, w: number, h: number) => {
+    const px = (d.x - .5) * 2; const py = (d.y - .5) * 2; const pz = (d.z - .5) * 2;
+    const cy = Math.cos(view.rotY); const sy = Math.sin(view.rotY);
+    const cx = Math.cos(view.rotX); const sx = Math.sin(view.rotX);
+    const x1 = px * cy - pz * sy; const z1 = px * sy + pz * cy;
+    const y1 = py * cx - z1 * sx; const depth = py * sx + z1 * cx;
+    const perspective = 1 / (1.7 - depth * .34);
+    const size = Math.min(w, h) * .82 * view.zoom;
+    return { x: w / 2 + x1 * size * perspective, y: h / 2 + y1 * size * perspective, depth, scale: Math.max(.72, Math.min(1.28, perspective * 1.7)) };
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -75,15 +82,15 @@ function MapCanvas({ data, groups, keyOf, activeKeys, query, selected, onSelect 
       ctx.strokeStyle = "rgba(25,42,38,.055)"; ctx.lineWidth = 1;
       for (let x = 0; x < rect.width; x += 42) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, rect.height); ctx.stroke(); }
       for (let y = 0; y < rect.height; y += 42) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(rect.width, y); ctx.stroke(); }
-      visible.forEach((d) => {
-        const p = pointAt(d, rect.width, rect.height);
+      const projected = visible.map((d) => ({ d, p: pointAt(d, rect.width, rect.height) })).sort((a, b) => a.p.depth - b.p.depth);
+      projected.forEach(({ d, p }) => {
         const isSelected = selected?.id === d.id; const isHovered = hovered?.id === d.id;
         if (isSelected || isHovered) {
-          ctx.beginPath(); ctx.arc(p.x, p.y, isSelected ? 11 : 9, 0, Math.PI * 2);
+          ctx.beginPath(); ctx.arc(p.x, p.y, (isSelected ? 11 : 9) * p.scale, 0, Math.PI * 2);
           ctx.fillStyle = "rgba(255,255,255,.9)"; ctx.fill();
         }
-        ctx.beginPath(); ctx.arc(p.x, p.y, isSelected ? 6.5 : isHovered ? 5.5 : 3.6, 0, Math.PI * 2);
-        ctx.fillStyle = colorMap.get(keyOf(d)) ?? "#55766f"; ctx.globalAlpha = isSelected || isHovered ? 1 : .78; ctx.fill(); ctx.globalAlpha = 1;
+        ctx.beginPath(); ctx.arc(p.x, p.y, (isSelected ? 6.5 : isHovered ? 5.5 : 3.4) * p.scale, 0, Math.PI * 2);
+        ctx.fillStyle = colorMap.get(keyOf(d)) ?? "#55766f"; ctx.globalAlpha = isSelected || isHovered ? 1 : .55 + p.scale * .2; ctx.fill(); ctx.globalAlpha = 1;
       });
     };
     draw();
@@ -101,19 +108,19 @@ function MapCanvas({ data, groups, keyOf, activeKeys, query, selected, onSelect 
   const hoveredCluster = hovered ? data.clusters.find((c) => c.id === hovered.cluster) : null;
 
   return <div className="map-frame" ref={frameRef}>
-    <canvas ref={canvasRef} aria-label={`Interactive map of ${visible.length} DANDI datasets`}
+    <canvas ref={canvasRef} aria-label={`Rotatable three-dimensional map of ${visible.length} DANDI datasets`}
       onPointerMove={(e) => {
         const d = drag.current;
-        if (d) { setView((v) => ({ ...v, ox: d.ox + e.clientX - d.x, oy: d.oy + e.clientY - d.y })); return; }
+        if (d) { setView((v) => ({ ...v, rotY: d.rotY + (e.clientX - d.x) * .008, rotX: Math.max(-1.35, Math.min(1.35, d.rotX + (e.clientY - d.y) * .008)) })); return; }
         setHovered(findPoint(e.clientX, e.clientY));
       }}
-      onPointerDown={(e) => { const hit = findPoint(e.clientX, e.clientY); if (hit) onSelect(hit); else drag.current = { x: e.clientX, y: e.clientY, ox: view.ox, oy: view.oy }; }}
+      onPointerDown={(e) => { const hit = findPoint(e.clientX, e.clientY); if (hit) onSelect(hit); else { e.currentTarget.setPointerCapture(e.pointerId); drag.current = { x: e.clientX, y: e.clientY, rotX: view.rotX, rotY: view.rotY }; } }}
       onPointerUp={() => { drag.current = null; }} onPointerLeave={() => { drag.current = null; setHovered(null); }} />
-    <div className="map-caption"><span className="pulse" /> {visible.length.toLocaleString()} datasets in view</div>
+    <div className="map-caption"><span className="pulse" /> {visible.length.toLocaleString()} datasets · drag to rotate</div>
     <div className="zoom-controls" aria-label="Map zoom controls">
       <button onClick={() => setView((v) => ({ ...v, zoom: Math.min(2.8, v.zoom * 1.22) }))} aria-label="Zoom in">+</button>
       <button onClick={() => setView((v) => ({ ...v, zoom: Math.max(.7, v.zoom / 1.22) }))} aria-label="Zoom out">−</button>
-      <button className="reset" onClick={() => setView({ zoom: 1, ox: 0, oy: 0 })}>Reset</button>
+      <button className="reset" onClick={() => setView(defaultView)}>Reset</button>
     </div>
     {hovered && <div className="tooltip"><b>{hovered.title}</b><span>DANDI:{hovered.id}</span>{hoveredCluster && <span className="topic"><i style={{ background: hoveredCluster.color }} />{hoveredCluster.label}</span>}</div>}
   </div>;

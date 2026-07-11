@@ -147,7 +147,7 @@ def main() -> None:
     # positions can never disagree. HDBSCAN then finds natural, uneven topic regions
     # and flags genuine outliers (label -1) instead of forcing a mega-cluster.
     n = len(records)
-    umap_model = UMAP(n_components=2, n_neighbors=min(15, max(2, n - 1)), min_dist=0.0, metric="cosine", random_state=42)
+    umap_model = UMAP(n_components=3, n_neighbors=min(15, max(2, n - 1)), min_dist=0.0, metric="cosine", random_state=42)
     # Keep this small so tight, genuinely distinct groups (e.g. C. elegans) survive as their
     # own topics instead of being swept into the outlier pile. EOM selection then keeps the
     # regions stable without fragmenting into dozens of near-duplicate specks.
@@ -186,9 +186,9 @@ def main() -> None:
         cluster_rows.append({"id": -1, "label": "Unclustered", "count": outliers, "color": OUTLIER_COLOR, "terms": []})
 
     for item, point, tid in zip(records, points, labels):
-        item.update({"x": round(float(point[0]), 5), "y": round(float(point[1]), 5), "cluster": int(tid)})
+        item.update({"x": round(float(point[0]), 5), "y": round(float(point[1]), 5), "z": round(float(point[2]), 5), "cluster": int(tid)})
 
-    payload = {"generatedAt": datetime.now(timezone.utc).isoformat(), "total": len(records), "method": "MiniLM embeddings · UMAP · HDBSCAN · c-TF-IDF", "clusters": cluster_rows, "dandisets": records}
+    payload = {"generatedAt": datetime.now(timezone.utc).isoformat(), "total": len(records), "method": "MiniLM embeddings · UMAP (3D) · HDBSCAN · c-TF-IDF", "clusters": cluster_rows, "dandisets": records}
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, separators=(",", ":"), ensure_ascii=False) + "\n")
