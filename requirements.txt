@@ -1,5 +1,5 @@
 numpy==2.2.6
-requests==2.32.4
+requests==2.33.0
 scikit-learn==1.6.1
 bertopic==0.17.4
 sentence-transformers==5.6.0
